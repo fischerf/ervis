@@ -1,6 +1,6 @@
 # ervis - Evidence Record Visualization
 
-A Python library for creating, managing and visualizing Evidence Records based on [RFC 4998](https://datatracker.ietf.org/doc/html/rfc4998) (Evidence Record Syntax). This implementation serves as an educational example to understand the concepts of Evidence Records and their visualization.
+A Python/Lua library for creating, managing and visualizing Evidence Records based on [RFC 4998](https://datatracker.ietf.org/doc/html/rfc4998) (Evidence Record Syntax). This implementation serves as an educational example to understand the concepts of Evidence Records and their visualization.
 
 ## Overview
 
@@ -107,10 +107,23 @@ For details please refer to [RFC4998](https://datatracker.ietf.org/doc/html/rfc4
 Clone the repository:
 ```bash
 git clone https://github.com/yourusername/ervis.git
+
 cd ervis
+
+python ervis.py
 ```
 
-No additional dependencies required - the library uses only Python standard library components.
+or
+
+```bash
+git clone https://github.com/yourusername/ervis.git
+
+cd ervis
+
+lua ervis.lua
+```
+
+No additional dependencies required - the library uses only Python/Lua standard library components.
 
 ## License
 
