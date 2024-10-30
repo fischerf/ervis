@@ -4,11 +4,18 @@ A Python/Lua library for creating, managing and visualizing Evidence Records bas
 
 ## Overview
 
-The ervis project consists of three main components:
+The ervis project consists of three main components, each for your preferred interpreter (Python or Lua):
+
+For Python 3.12.+:
 
 1. **evidence_record.py**: Core library for Evidence Record operations
 2. **evidence_record_print.py**: Visualization utilities for Evidence Records
 3. **ervis.py**: Example implementation demonstrating the library's usage
+
+For Lua 5.4:
+1. **evidence_record.lua**: Core library for Evidence Record operations
+2. **evidence_record_print.lua**: Visualization utilities for Evidence Records
+3. **ervis.lua**: Example implementation demonstrating the library's usage
 
 ## Features
 
@@ -18,7 +25,7 @@ The ervis project consists of three main components:
 - Hash algorithm renewal support
 - ASCII visualization of hash trees and Evidence Records
 
-## Evidence Record Library
+## Core library
 
 ### Evidence Record creation (evidence_record.py)
 
@@ -61,7 +68,7 @@ records_and_hashes = [
 new_records, new_tree = er.renew_hashtree(records_and_hashes, "SHA512")
 ```
 
-## Evidence Record visualization Library
+## Evidence Record visualization utilities
 
 ### Evidence Record visualization (evidence_record_print.py)
 
