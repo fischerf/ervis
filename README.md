@@ -1,6 +1,6 @@
 # ervis - Evidence Record Visualization
 
-A Python library for creating, managing and visualizing Evidence Records based on RFC 4998 (Evidence Record Syntax). This implementation serves as an educational example to understand the concepts of Evidence Records and their visualization.
+A Python library for creating, managing and visualizing Evidence Records based on [RFC 4998](https://datatracker.ietf.org/doc/html/rfc4998) (Evidence Record Syntax). This implementation serves as an educational example to understand the concepts of Evidence Records and their visualization.
 
 ## Overview
 
@@ -100,12 +100,7 @@ The library can create ASCII visualizations of hash trees like this:
 
 ## Evidence Record Structure
 
-An Evidence Record contains:
-- Version information
-- Digest algorithm details
-- Archive timestamp sequence
-- Reduced hash trees
-- Timestamp metadata
+For details please refer to [RFC4998](https://datatracker.ietf.org/doc/html/rfc4998)
 
 ## Installation
 
