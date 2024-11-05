@@ -19,7 +19,7 @@ For Lua 5.4:
 
 ## Features
 
-- Creation, renewal and verification of Evidence Records
+- Creation, renewal of Evidence Records
 - Hash tree (Merkle tree) construction and reduction
 - Timestamp sequence management
 - Hash algorithm renewal support
@@ -29,7 +29,7 @@ For Lua 5.4:
 
 ### Evidence Record creation (evidence_record.py)
 
-The main library providing all Evidence Record related functionality:
+The main library providing Evidence Record related functionality:
 
 ```python
 from evidence_record import EvidenceRecord
@@ -45,11 +45,6 @@ reduced_tree = EvidenceRecord().reduce_tree(tree, hash_value)
 
 # Create an Evidence Record with the reduced tree for a specific hash
 record = er.create_evidence_record(tree, reduced_tree, "SHA256")
-
-# Verify an Evidence Record
-result, message = er.verify_evidence_record(record, [(hash_value, "SHA256")])
-print("\n")
-print(text, result)
 ```
 
 ### Evidence Record hash algorithm renewal
@@ -103,6 +98,81 @@ The library can create ASCII visualizations of hash trees like this:
     +----+    +----+
     | h1 |    | h2 |
     +----+    +----+
+```
+
+or with Renewal:
+
+```
+Full hash tree:
+      +----------+
+      | h1+h2+h3 |
+      +----------+
+        /        \
+   +-------+      +----+
+   | h1+h2 |      | h3 |
+   +-------+      +----+
+    /      \         |
++----+    +----+    +----+
+| h1 |    | h2 |    | h3 |
++----+    +----+    +----+
+
+Full hash tree:
+      +-------------------------------------------------------+
+      | (H1) + (h1+h2+h3)+(H2) + (h1+h2+h3)+(H3) + (h1+h2+h3) |
+      +-------------------------------------------------------+
+                       /                              \
+   +-------------------------------------+      +-------------------+
+   | (H1) + (h1+h2+h3)+(H2) + (h1+h2+h3) |      | (H3) + (h1+h2+h3) |
+   +-------------------------------------+      +-------------------+
+        /                       \                        |
++-------------------+    +-------------------+    +-------------------+
+| (H1) + (h1+h2+h3) |    | (H2) + (h1+h2+h3) |    | (H3) + (h1+h2+h3) |
++-------------------+    +-------------------+    +-------------------+
+```
+
+or an EvidenceRecord with reduced Trees:
+
+```
++----------------------------------------------------------+
+| Evidence Record v1 - SHA512                              |
++----------------------------------------------------------+
+
+Archive Time Stamp Sequence:
+------------------------------
+Chain 1:
+
+  +------------------------------------------------+
+  | Timestamp: 2024-11-05 14:34:37 [SHA256]        |
+  +------------------------------------------------+
+       +----------+
+       | h1+h2+h3 |
+       +----------+
+          /       \
+     +-------+    +----+
+     | h1+h2 |    | h3 |
+     +-------+    +----+
+     /       \
+  +----+    +----+
+  | h1 |    | h2 |
+  +----+    +----+
+
+------------------------------
+Chain 2:
+
+  +------------------------------------------------+
+  | Timestamp: 2024-11-05 14:34:37 [SHA512]        |
+  +------------------------------------------------+
+       +-------------------------------------------------------+
+       | (H1) + (h1+h2+h3)+(H2) + (h1+h2+h3)+(H3) + (h1+h2+h3) |
+       +-------------------------------------------------------+
+                        /                              \
+     +-------------------------------------+    +-------------------+
+     | (H1) + (h1+h2+h3)+(H2) + (h1+h2+h3) |    | (H3) + (h1+h2+h3) |
+     +-------------------------------------+    +-------------------+
+          /                      \
+  +-------------------+    +-------------------+
+  | (H1) + (h1+h2+h3) |    | (H2) + (h1+h2+h3) |
+  +-------------------+    +-------------------+
 ```
 
 ## Evidence Record Structure
