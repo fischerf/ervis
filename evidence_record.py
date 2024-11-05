@@ -168,8 +168,15 @@ class EvidenceRecord:
             atsc_hash = self.hash_pair(atsc)  # Step 3: ha(i) = H(atsc(i))
 
             # Step 4: Combine Document Hash with ATSC Hash
-            combined_hash = self.hash_pair(new_document_hash, atsc_hash, True)
-            new_hashes.append(combined_hash)
+            if isinstance(new_document_hash, list):
+                for hash_value in new_document_hash:
+                    # Step 4: Combine Document Hash with ATSC Hash
+                    combined_hash = self.hash_pair(hash_value, atsc_hash, True)
+                    new_hashes.append(combined_hash)
+            else:
+                # Step 4: Combine Document Hash with ATSC Hash
+                combined_hash = self.hash_pair(new_document_hash, atsc_hash, True)
+                new_hashes.append(combined_hash)
 
         # Step 5: Create a new hash tree with the combined hashes
         new_tree = self.create_hashtree(new_hashes)
