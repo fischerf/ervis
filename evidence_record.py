@@ -32,7 +32,7 @@ __author__ = "Florian Fischer"
 
 class EvidenceRecord:
     def __init__(self):
-        self.with_bracket = False
+        self.with_bracket = True
 
     @staticmethod
     def version():
@@ -153,7 +153,8 @@ class EvidenceRecord:
         # For this example, we simply concatenate the hashes
         encoded = ''
         for ats in sequence:
-            encoded += ats['timestamp']['hash']
+            # last current ats-hash is taken
+            encoded = ats['timestamp']['hash']
         return encoded
 
     def renew_hashtree(self, records_and_hashes, new_hash_algorithm):
@@ -197,67 +198,3 @@ class EvidenceRecord:
             results.append(record)
 
         return results, new_tree
-
-    def verify_timestamp(self, timestamp, reference_time):
-        """Helper function to verify a single timestamp"""
-        # In a real implementation, this would verify the cryptographic signature
-        # and the validity at the reference time
-        # For this example, we only check if the timestamp is before the reference time
-        return timestamp['time'] < reference_time
-
-    def verify_reduced_tree(self, reduced_tree, target_hash):
-        """Helper function to verify a reduced Merkle tree"""
-        if not reduced_tree:
-            return False
-
-        # If we reach a leaf, compare the hash
-        if reduced_tree['is_leaf']:
-            return reduced_tree['hash'] == target_hash
-
-        # Calculate the hash of the current node based on its children
-        calculated_hash = self.hash_pair(reduced_tree['left']['hash'], reduced_tree['right']['hash'] if reduced_tree['right'] else None)
-        return calculated_hash == reduced_tree['hash']
-
-    def verify_evidence_record(self, record, hash_value_algorithm_pairs):
-        """Main function to verify an Evidence Record"""
-        if not record or not record['archiveTimeStampSequence'] or len(record['archiveTimeStampSequence']) == 0:
-            return False, "Invalid evidence record structure"
-
-        current_time = time.time() + 1
-
-        # Step 1: Verify the initial Archive Timestamp
-        initial_chain = record['archiveTimeStampSequence'][0]
-        initial_hash, initial_algorithm = hash_value_algorithm_pairs[0]
-
-        if not self.verify_reduced_tree(initial_chain['reduced'], initial_hash):
-            return False, "Initial hash verification failed"
-
-        # Step 2: Verify each ArchiveTimestampChain
-        previous_timestamp = initial_chain['timestamp']
-        previous_algorithm = initial_algorithm
-
-        for i, current_chain in enumerate(record['archiveTimeStampSequence'][1:], start=2):
-            current_hash, current_algorithm = hash_value_algorithm_pairs[i - 1]
-
-            # Check if the hash algorithm in the chain is consistent
-            if current_algorithm == previous_algorithm:
-                return False, f"Inconsistent hash algorithm in chain {i}: expected {previous_algorithm}, got {current_algorithm}"
-
-            # Verify the timestamp
-            if not self.verify_timestamp(previous_timestamp, current_chain['timestamp']['time'] + 1):
-                return False, f"Invalid timestamp sequence in chain {i}"
-
-            # Step 3: Verify the chaining of the ArchiveTimeStampChains
-            right_leaf = self.encode_atsc([{'timestamp': previous_timestamp}])
-            concatenated_hash = self.hash_pair(current_hash, right_leaf)
-            if not self.verify_reduced_tree(current_chain['reduced'], concatenated_hash):
-                return False, f"Chain linkage verification failed at chain {i}"
-
-            previous_timestamp = current_chain['timestamp']
-            previous_algorithm = current_algorithm
-
-        # Verify the validity of the last timestamp
-        if not self.verify_timestamp(previous_timestamp, current_time):
-            return False, "Last timestamp is not valid at current time"
-
-        return True, "Evidence record verification successful"

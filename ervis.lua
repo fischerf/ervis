@@ -49,11 +49,11 @@ for i, hash in ipairs(initialHashes) do
 
 	PrintEr.displayEvidenceRecord( record )
 
-	local result, text = EvidenceRecord.verifyEvidenceRecord(record, { hash, "SHA256" } )
-	print("\n" .. text, result)
+	--local result, text = EvidenceRecord.verifyEvidenceRecord(record, { hash, "SHA256" } )
+	--print("\n" .. text, result)
 end
 
--- Simuliere neue Hashes mit neuem Algorithmus
+-- Simuliere reHash mit neuem Algorithmus
 local records_and_hashes = {
 	{records[1], "H1"},
 	{records[2], "H2"},
@@ -71,10 +71,10 @@ PrintEr.displayTree(newTree.root)
 for i, record in ipairs(renewedRecords) do
 	PrintEr.displayEvidenceRecord( record )
 
-	local result, text = EvidenceRecord.verifyEvidenceRecord(record, {
-																		{ initialHashes[i], "SHA256" },
-																		{ records_and_hashes[i][2], "SHA512"},
-																	 }
-															)
-	print("\n" .. text, result)
+	--local result, text = EvidenceRecord.verifyEvidenceRecord(record, {
+	--																	{ initialHashes[i], "SHA256" },
+	--																	{ records_and_hashes[i][2], "SHA512"},
+	--																 }
+	--														)
+	--print("\n" .. text, result)
 end

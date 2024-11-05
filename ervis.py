@@ -49,13 +49,9 @@ for hash_value in initial_hashes:
 
     PrintEr().display_evidence_record(record)
 
-    result, text = EvidenceRecord().verify_evidence_record(record, [hash_value, "SHA256"])
-    print("\n")
-    print(text, result)
-
     records.append(record)
 
-# Simulate new hashes with a new algorithm
+# Simulate rehash with a new algorithm
 records_and_hashes = [
     (records[0], "H1"),
     (records[1], "H2"),
@@ -74,10 +70,4 @@ for line in full_tree_vis:
 
 for i, record in enumerate(renewed_records):
     PrintEr().display_evidence_record(record)
-
-    result, text = EvidenceRecord().verify_evidence_record(record, [
-        (initial_hashes[i], "SHA256"),
-        (records_and_hashes[i][1], "SHA512"),
-    ])
-    print(text, result)
 

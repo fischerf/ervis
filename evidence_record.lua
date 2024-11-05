@@ -34,7 +34,7 @@ function EvidenceRecord.version()
     return EvidenceRecord._NAME .. " " .. EvidenceRecord._VERSION .. " (c)'2024, " .. EvidenceRecord._AUTHOR
 end
 
-local withBracket = false
+local withBracket = true
 
 -- Hilfsfunktion zum Hashen von zwei Werten
 local function hashPair(left, right, writeBrackets)
@@ -215,7 +215,8 @@ local function encodeATSC(sequence)
     -- Für dieses Beispiel konkatenieren wir einfach die Hashes
     local encoded = ""
     for _, ats in ipairs(sequence) do
-        encoded = encoded .. ats.timestamp.hash
+        -- letzter aktueller ats-hash wird genommen
+        encoded = ats.timestamp.hash
     end
     return encoded
 end
@@ -228,15 +229,25 @@ function EvidenceRecord.renewHashtree(records_and_hashes, newHashAlgorithm)
     -- Schritt 3 & 4: Für jeden Evidence Record
     for _, tuple in ipairs(records_and_hashes) do
         local record = tuple[1]
-        local newDocumentHash = tuple[2]
+--        local newDocumentHash = tuple[2]
         
         -- Encode die bestehende ArchiveTimeStampSequence
         local atsc = encodeATSC(record.archiveTimeStampSequence)
         local atscHash = hashPair(atsc) -- Schritt 3: ha(i) = H(atsc(i))
         
-        -- Schritt 4: Kombiniere Document Hash mit ATSC Hash
-        local combinedHash = hashPair(newDocumentHash, atscHash, true)
-        table.insert(newHashes, combinedHash)
+        local newDocumentHash = tuple[2]
+		
+		if type(newDocumentHash) == "table" then
+			for _, hash in ipairs(newDocumentHash) do
+				-- Schritt 4: Kombiniere Document Hash mit ATSC Hash
+				local combinedHash = hashPair(hash, atscHash, true)
+				table.insert(newHashes, combinedHash)
+			end
+		else
+			-- Schritt 4: Kombiniere Document Hash mit ATSC Hash
+			local combinedHash = hashPair(newDocumentHash, atscHash, true)
+			table.insert(newHashes, combinedHash)
+		end
     end
     
     -- Schritt 5: Erstelle einen neuen Hashbaum mit den kombinierten Hashes
@@ -250,7 +261,7 @@ function EvidenceRecord.renewHashtree(records_and_hashes, newHashAlgorithm)
         
         -- Reduziere den Baum für den spezifischen Hash
         local reducedTree = EvidenceRecord.reduceTree(newTree, combinedHash)
-        
+
         -- Schritt 6: Erstelle neue ArchiveTimeStampChain
         local newTimestamp = EvidenceRecord.createTimestamp(newTree.root.hash, newHashAlgorithm)
         local newChain = {
@@ -271,82 +282,121 @@ function EvidenceRecord.renewHashtree(records_and_hashes, newHashAlgorithm)
 end
 
 --------------------------------------------------------------------
-
--- Hilfsfunktion zum Verifizieren eines einzelnen Zeitstempels
+-- Verification is not complete!
+--[[
+-- Helper function to verify a single timestamp
 local function verifyTimestamp(timestamp, referenceTime)
-    -- In einer echten Implementierung würde hier die kryptographische Signatur geprüft
-    -- und die Gültigkeit zum Referenzzeitpunkt verifiziert
-    -- Für dieses Beispiel prüfen wir nur, ob der Timestamp vor der Referenzzeit liegt
+    -- In a real implementation, the cryptographic signature would be verified
+    -- and validity would be checked at the reference time
+    -- For this example, we just check if the timestamp is before the reference time
     return timestamp.time < referenceTime
 end
 
--- Hilfsfunktion zum Verifizieren eines reduzierten Merkle-Baums
+-- Helper function to verify a reduced Merkle tree
 local function verifyReducedTree(reducedTree, targetHash)
     if not reducedTree then
         return false
     end
     
-    -- Wenn wir ein Blatt erreicht haben, vergleiche den Hash
-    if reducedTree.isLeaf then
-        return reducedTree.hash == targetHash
+    -- First, find the target hash in the leaf nodes
+    local function findTargetInLeaves(node)
+        if not node then
+            return false
+        end
+        
+        -- If we're at a leaf, check if it matches the target hash
+        if node.isLeaf then
+            return node.hash == targetHash
+        end
+        
+        -- Recursively search left and right subtrees
+        return findTargetInLeaves(node.left) or findTargetInLeaves(node.right)
     end
     
-    -- Berechne den Hash des aktuellen Knotens basierend auf seinen Kindern
-    local calculatedHash
-    if reducedTree.left and reducedTree.right then
-        calculatedHash = hashPair(reducedTree.left.hash, reducedTree.right.hash)
-    else
-        calculatedHash = reducedTree.left and reducedTree.left.hash or reducedTree.right.hash
+    -- Verify the hash calculations from bottom to top
+    local function verifyNodeHash(node)
+        if not node then
+            return true
+        end
+        
+        -- If it's a leaf node, no need to verify further down
+        if node.isLeaf then
+            return true
+        end
+        
+        -- Verify left and right subtrees first
+        if not verifyNodeHash(node.left) or not verifyNodeHash(node.right) then
+            return false
+        end
+        
+        -- Calculate expected hash based on children
+        local calculatedHash
+		--print('check hash', node.left and node.left.hash, node.right and node.right.hash)
+        if node.left and node.right then
+            calculatedHash = node.left.hash .. "+" .. node.right.hash
+        elseif node.left or node.right then
+            calculatedHash = node.left and node.left.hash or node.right.hash
+        end
+        
+        -- Compare calculated hash with stored hash
+        --print('compare', calculatedHash, node.hash, calculatedHash == node.hash)
+        return calculatedHash == node.hash
     end
     
-    return calculatedHash == reducedTree.hash
+    -- First verify that the target hash exists in the leaves
+    if not findTargetInLeaves(reducedTree) then
+        return false
+    end
+    
+    -- Then verify the hash chain from bottom to top
+    return verifyNodeHash(reducedTree)
 end
 
--- Hauptfunktion zur Verifikation eines Evidence Records
+-- Main function to verify an Evidence Record
 function EvidenceRecord.verifyEvidenceRecord(record, hashValueAlgorithmPairs)
     if not record or not record.archiveTimeStampSequence or #record.archiveTimeStampSequence == 0 then
         return false, "Invalid evidence record structure"
     end
     
-    local currentTime = os.time()+1
+    local currentTime = os.time() + 1
     
-    -- Schritt 1: Verifiziere den initialen Archive Timestamp
+    -- Step 1: Verify the initial Archive Timestamp
     local initialChain = record.archiveTimeStampSequence[1]
     local initialHash = hashValueAlgorithmPairs[1][1]
     local initialAlgorithm = hashValueAlgorithmPairs[1][2]
-    
+    --print('initialChain.reduced, initialHash', initialChain.reduced, initialHash)
     if not verifyReducedTree(initialChain.reduced, initialHash) then
         return false, "Initial hash verification failed"
     end
     
-    -- Schritt 2: Verifiziere jede ArchiveTimestampChain
+    -- Step 2: Verify each ArchiveTimestampChain
     local previousTimestamp = initialChain.timestamp
     local previousAlgorithm = initialAlgorithm
     
-    for i = 2, #record.archiveTimeStampSequence do
+    for i = 1, #record.archiveTimeStampSequence do
         local currentChain = record.archiveTimeStampSequence[i]
         local currentHash = hashValueAlgorithmPairs[i][1]
         local currentAlgorithm = hashValueAlgorithmPairs[i][2]
         
-        -- Prüfe, ob der Hash-Algorithmus in der Kette konsistent ist
+        -- Check if hash algorithm in chain is consistent
         if currentAlgorithm == previousAlgorithm then
             return false, string.format(
-                "Inconsistent hash algorithm in chain %d: expected %s, got %s",
+                "Inconsistent hash algorithm in chain %d: expected different than %s, got %s",
                 i, previousAlgorithm, currentAlgorithm
             )
         end
         
-        -- Verifiziere den Zeitstempel
-        if not verifyTimestamp(previousTimestamp, currentChain.timestamp.time+1) then
+        -- Verify timestamp
+        if not verifyTimestamp(previousTimestamp, currentChain.timestamp.time + 1) then
             return false, string.format(
                 "Invalid timestamp sequence in chain %d",
                 i
             )
         end
         
-        -- Schritt 3: Verifiziere die Verkettung der ArchiveTimeStampChains
-		local rightLeaf = encodeATSC({ timestamp = { previousTimestamp} })
-        local concatenatedHash = hashPair(currentHash, rightLeaf)
+        -- Step 3: Verify the chaining of ArchiveTimeStampChains
+        local rightLeaf = previousTimestamp.hash -- Encode the previous timestamp
+        local concatenatedHash = currentHash .. "+" .. rightLeaf
         if not verifyReducedTree(currentChain.reduced, concatenatedHash) then
             return false, string.format(
                 "Chain linkage verification failed at chain %d",
@@ -358,12 +408,106 @@ function EvidenceRecord.verifyEvidenceRecord(record, hashValueAlgorithmPairs)
         previousAlgorithm = currentAlgorithm
     end
     
-    -- Prüfe die Gültigkeit des letzten Zeitstempels
+    -- Check validity of last timestamp
     if not verifyTimestamp(previousTimestamp, currentTime) then
         return false, "Last timestamp is not valid at current time"
     end
     
     return true, "Evidence record verification successful"
 end
+
+-- Test function to validate the implementation
+local function testVerifyReducedTree()
+    local testReducedTree = {
+						hash = "h1+h2+h3",
+						isLeaf = false,
+						left = {
+						  hash = "h1+h2",
+						  isLeaf = false
+						},
+						right = {
+						  hash = "h3",
+						  isLeaf = false,
+						  left = {
+							hash = "h3",
+							isLeaf = true,
+							leafPosition = "left"
+						  }
+						}
+					  }
+    
+    -- Test cases
+    print("Testing h1:", verifyReducedTree(testReducedTree, "h1"))  -- Should be false
+    print("Testing h2:", verifyReducedTree(testReducedTree, "h2"))  -- Should be false
+    print("Testing h3:", verifyReducedTree(testReducedTree, "h3"))  -- Should be true
+    print("Testing invalid hash:", verifyReducedTree(testReducedTree, "h4"))  -- Should be false
+end
+
+testVerifyReducedTree()
+
+local function testVerifyEvidenceRecord()
+    local testEvidenceRecord = {
+					  archiveTimeStampSequence = { {
+						  reduced = {
+							hash = "h1+h2+h3",
+							isLeaf = false,
+							left = {
+							  hash = "h1+h2",
+							  isLeaf = false
+							},
+							right = {
+							  hash = "h3",
+							  isLeaf = false,
+							  left = {
+								hash = "h3",
+								isLeaf = true,
+								leafPosition = "left"
+							  }
+							}
+						  },
+						  timestamp = {
+							algorithm = "SHA256",
+							hash = "h1+h2+h3",
+							time = 1730736754
+						  }
+						}, {
+						  reduced = {
+							hash = "H1+h1+h2+h3+H2+h1+h2+h3+H3+h1+h2+h3",
+							isLeaf = false,
+							left = {
+							  hash = "H1+h1+h2+h3+H2+h1+h2+h3",
+							  isLeaf = false
+							},
+							right = {
+							  hash = "H3+h1+h2+h3",
+							  isLeaf = false,
+							  left = {
+								hash = "H3+h1+h2+h3",
+								isLeaf = true,
+								leafPosition = "left"
+							  }
+							}
+						  },
+						  timestamp = {
+							algorithm = "SHA512",
+							hash = "H1+h1+h2+h3+H2+h1+h2+h3+H3+h1+h2+h3",
+							time = 1730736754
+						  }
+						} },
+					  cryptoInfos = {},
+					  digestAlgorithm = "SHA512",
+					  version = 1
+					}
+    -- Test case: A sequence with two chains, where one document is covered. In the first chain the document hash is h3 made with SHA256 HashAlgorithm and the second hash of the document is H3 made with SHA512 HashAlgorithm.
+	local result, text = EvidenceRecord.verifyEvidenceRecord(testEvidenceRecord, {
+																		{ "h3", "SHA256" },
+																		{ "H3", "SHA512"},
+																	 }
+															)
+	print("Testing ER:", text, result)	-- result should be true
+end
+
+testVerifyEvidenceRecord()
+]]--
 
 return EvidenceRecord
